@@ -1,1 +1,342 @@
-{"metadata":{"kernelspec":{"language":"python","display_name":"Python 3","name":"python3"},"language_info":{"pygments_lexer":"ipython3","nbconvert_exporter":"python","version":"3.6.4","file_extension":".py","codemirror_mode":{"name":"ipython","version":3},"name":"python","mimetype":"text/x-python"},"kaggle":{"accelerator":"none","dataSources":[{"sourceId":11848,"databundleVersionId":862157,"sourceType":"competition"}],"isInternetEnabled":true,"language":"python","sourceType":"notebook","isGpuEnabled":false}},"nbformat_minor":4,"nbformat":4,"cells":[{"cell_type":"markdown","source":"# Cancer Detection CNN","metadata":{}},{"cell_type":"markdown","source":"","metadata":{}},{"cell_type":"code","source":"# This Python 3 environment comes with many helpful analytics libraries installed\n# It is defined by the kaggle/python Docker image: https://github.com/kaggle/docker-python\n# For example, here's several helpful packages to load\n\nimport numpy as np # linear algebra\nimport pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)\n\n# Input data files are available in the read-only \"../input/\" directory\n# For example, running this (by clicking run or pressing Shift+Enter) will list all files under the input directory\n\nimport os\nfor dirname, _, filenames in os.walk('/kaggle/input'):\n    for filename in filenames:\n        print(os.path.join(dirname, filename))\n\n# You can write up to 20GB to the current directory (/kaggle/working/) that gets preserved as output when you create a version using \"Save & Run All\" \n# You can also write temporary files to /kaggle/temp/, but they won't be saved outside of the current session","metadata":{"_uuid":"8f2839f25d086af736a60e9eeb907d3b93b6e0e5","_cell_guid":"b1076dfc-b9ad-4769-8c92-a6c4dae69d19","trusted":true},"execution_count":null,"outputs":[]}]}
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "id": "9a517d7f",
+   "metadata": {
+    "papermill": {
+     "duration": 0.005141,
+     "end_time": "2024-09-10T19:10:16.715374",
+     "exception": false,
+     "start_time": "2024-09-10T19:10:16.710233",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "source": [
+    "# Cancer Detection CNN"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "3a7f8fc7",
+   "metadata": {
+    "papermill": {
+     "duration": 0.003977,
+     "end_time": "2024-09-10T19:10:16.724237",
+     "exception": false,
+     "start_time": "2024-09-10T19:10:16.720260",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "source": [
+    "## Introduction"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "4873c144",
+   "metadata": {
+    "papermill": {
+     "duration": 0.003835,
+     "end_time": "2024-09-10T19:10:16.732216",
+     "exception": false,
+     "start_time": "2024-09-10T19:10:16.728381",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "source": [
+    "### Problem and Data\n",
+    "\n",
+    "This Problem involves identifying metastatic cancer in small image patches taken from larger digital pathology scans. The dataset contains over 270,000 scan images in tif format. The \"train_labels.csv\" provides ground truth for train dataset, and contains two classes, 0 and 1. So this is a binary classification problem."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "f3ead1ce",
+   "metadata": {
+    "papermill": {
+     "duration": 0.003817,
+     "end_time": "2024-09-10T19:10:16.740044",
+     "exception": false,
+     "start_time": "2024-09-10T19:10:16.736227",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "source": [
+    "### Import Library"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 1,
+   "id": "fc5111f1",
+   "metadata": {
+    "_cell_guid": "b1076dfc-b9ad-4769-8c92-a6c4dae69d19",
+    "_uuid": "8f2839f25d086af736a60e9eeb907d3b93b6e0e5",
+    "execution": {
+     "iopub.execute_input": "2024-09-10T19:10:16.749908Z",
+     "iopub.status.busy": "2024-09-10T19:10:16.749471Z",
+     "iopub.status.idle": "2024-09-10T19:10:17.195425Z",
+     "shell.execute_reply": "2024-09-10T19:10:17.194390Z"
+    },
+    "papermill": {
+     "duration": 0.45417,
+     "end_time": "2024-09-10T19:10:17.198238",
+     "exception": false,
+     "start_time": "2024-09-10T19:10:16.744068",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "# This Python 3 environment comes with many helpful analytics libraries installed\n",
+    "# It is defined by the kaggle/python Docker image: https://github.com/kaggle/docker-python\n",
+    "# For example, here's several helpful packages to load\n",
+    "\n",
+    "import numpy as np # linear algebra\n",
+    "import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)\n",
+    "import os\n",
+    "import pathlib\n",
+    "\n",
+    "\n",
+    "# You can write up to 20GB to the current directory (/kaggle/working/) that gets preserved as output when you create a version using \"Save & Run All\" \n",
+    "# You can also write temporary files to /kaggle/temp/, but they won't be saved outside of the current session"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "2800c859",
+   "metadata": {
+    "papermill": {
+     "duration": 0.004014,
+     "end_time": "2024-09-10T19:10:17.206777",
+     "exception": false,
+     "start_time": "2024-09-10T19:10:17.202763",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "source": [
+    "### Load Date"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 2,
+   "id": "53d28fce",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-10T19:10:17.216867Z",
+     "iopub.status.busy": "2024-09-10T19:10:17.216345Z",
+     "iopub.status.idle": "2024-09-10T19:10:37.900763Z",
+     "shell.execute_reply": "2024-09-10T19:10:37.899584Z"
+    },
+    "papermill": {
+     "duration": 20.692473,
+     "end_time": "2024-09-10T19:10:37.903431",
+     "exception": false,
+     "start_time": "2024-09-10T19:10:17.210958",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "220025\n",
+      "57458\n"
+     ]
+    }
+   ],
+   "source": [
+    "train_path = '/kaggle/input/histopathologic-cancer-detection/train'\n",
+    "test_path = '/kaggle/input/histopathologic-cancer-detection/test'\n",
+    "train_dir = pathlib.Path(train_path).with_suffix('')\n",
+    "test_dir = pathlib.Path(test_path).with_suffix('')\n",
+    "\n",
+    "train_imgs = list(train_dir.glob('*.tif'))\n",
+    "test_imgs = list(test_dir.glob('*.tif'))\n",
+    "\n",
+    "print(len(train_imgs))\n",
+    "print(len(test_imgs))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 3,
+   "id": "e5e6855f",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-09-10T19:10:37.913947Z",
+     "iopub.status.busy": "2024-09-10T19:10:37.913571Z",
+     "iopub.status.idle": "2024-09-10T19:10:37.921246Z",
+     "shell.execute_reply": "2024-09-10T19:10:37.920182Z"
+    },
+    "papermill": {
+     "duration": 0.01544,
+     "end_time": "2024-09-10T19:10:37.923581",
+     "exception": false,
+     "start_time": "2024-09-10T19:10:37.908141",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "PosixPath('/kaggle/input/histopathologic-cancer-detection/train/d43c081bafa286f9c1f7e921883f26ceafebc912.tif')"
+      ]
+     },
+     "execution_count": 3,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "# check image file name\n",
+    "train_imgs[0]"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "05f109a5",
+   "metadata": {
+    "papermill": {
+     "duration": 0.004112,
+     "end_time": "2024-09-10T19:10:37.932091",
+     "exception": false,
+     "start_time": "2024-09-10T19:10:37.927979",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "source": [
+    "## Exploratory Data Analysis (EDA)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "003d7440",
+   "metadata": {
+    "papermill": {
+     "duration": 0.004082,
+     "end_time": "2024-09-10T19:10:37.940463",
+     "exception": false,
+     "start_time": "2024-09-10T19:10:37.936381",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "source": [
+    "###  Inspect, Visualize and Clean the Data"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "58852336",
+   "metadata": {
+    "papermill": {
+     "duration": 0.004029,
+     "end_time": "2024-09-10T19:10:37.948831",
+     "exception": false,
+     "start_time": "2024-09-10T19:10:37.944802",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "source": [
+    "## Model"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "adc3d03f",
+   "metadata": {
+    "papermill": {
+     "duration": 0.00397,
+     "end_time": "2024-09-10T19:10:37.957041",
+     "exception": false,
+     "start_time": "2024-09-10T19:10:37.953071",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "source": [
+    "## Results and Analysis"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "d095922c",
+   "metadata": {
+    "papermill": {
+     "duration": 0.004038,
+     "end_time": "2024-09-10T19:10:37.965323",
+     "exception": false,
+     "start_time": "2024-09-10T19:10:37.961285",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "source": [
+    "## Conclusion"
+   ]
+  }
+ ],
+ "metadata": {
+  "kaggle": {
+   "accelerator": "none",
+   "dataSources": [
+    {
+     "databundleVersionId": 862157,
+     "sourceId": 11848,
+     "sourceType": "competition"
+    }
+   ],
+   "dockerImageVersionId": 30761,
+   "isGpuEnabled": false,
+   "isInternetEnabled": true,
+   "language": "python",
+   "sourceType": "notebook"
+  },
+  "kernelspec": {
+   "display_name": "Python 3",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.10.14"
+  },
+  "papermill": {
+   "default_parameters": {},
+   "duration": 24.862592,
+   "end_time": "2024-09-10T19:10:38.590643",
+   "environment_variables": {},
+   "exception": null,
+   "input_path": "__notebook__.ipynb",
+   "output_path": "__notebook__.ipynb",
+   "parameters": {},
+   "start_time": "2024-09-10T19:10:13.728051",
+   "version": "2.6.0"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 5
+}
